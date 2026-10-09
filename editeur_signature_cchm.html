@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Éditeur de signature CCHM</title>
+<style>
+  :root { color-scheme: light; --green:#b6cf22; --ink:#202020; --muted:#626262; --line:#d9d9d9; --panel:#fff; --bg:#f4f5f6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Arial,Helvetica,sans-serif; color:var(--ink); background:var(--bg); }
+  header { padding:24px clamp(18px,4vw,48px); background:#fff; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 7px; font-size:clamp(22px,3vw,30px); }
+  header p { margin:0; color:var(--muted); line-height:1.45; }
+  main { display:grid; grid-template-columns:minmax(290px,430px) minmax(0,1fr); gap:22px; padding:22px clamp(14px,3vw,36px) 40px; align-items:start; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; box-shadow:0 2px 8px #00000008; }
+  h2 { font-size:17px; margin:0 0 16px; }
+  .field { margin-bottom:13px; }
+  label { display:block; font-size:12px; font-weight:700; margin-bottom:6px; color:#383838; }
+  input, textarea { width:100%; border:1px solid #c9cdd1; border-radius:7px; padding:10px 11px; font:14px Arial,Helvetica,sans-serif; background:#fff; color:#222; }
+  input:focus, textarea:focus { outline:2px solid #b6cf2266; border-color:#8da20e; }
+  textarea { min-height:66px; resize:vertical; }
+  .hint { color:var(--muted); font-size:12px; line-height:1.45; margin:5px 0 0; }
+  .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:18px; }
+  button { border:0; border-radius:7px; padding:11px 14px; font-weight:700; font-size:13px; cursor:pointer; }
+  .primary { background:#242424; color:#fff; }
+  .secondary { background:#edf0d9; color:#30351b; }
+  .quiet { background:#f0f1f2; color:#333; }
+  button:hover { filter:brightness(.96); }
+  .preview-wrap { overflow:auto; padding:24px; background:#f7f7f7; border:1px dashed #d1d1d1; border-radius:8px; }
+  .preview-label { font-size:12px; color:var(--muted); margin:0 0 13px; }
+  #preview { min-width:620px; display:inline-block; background:white; }
+  #status { font-size:12px; min-height:16px; margin-top:12px; color:#3f5b00; }
+  details { margin-top:16px; }
+  summary { cursor:pointer; font-weight:700; font-size:13px; }
+  #htmlOutput { margin-top:10px; min-height:160px; font-family:Consolas,monospace; font-size:12px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } .preview-wrap { padding:12px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Éditeur de signature CCHM</h1>
+  <p>Modifiez les informations d’un membre de l’équipe, vérifiez l’aperçu, puis téléchargez une signature HTML prête à intégrer dans une messagerie.</p>
+</header>
+<main>
+  <section class="panel" aria-labelledby="formTitle">
+    <h2 id="formTitle">Informations de l’employé</h2>
+    <form id="editor" autocomplete="off">
+      <div class="field"><label for="name">Nom complet</label><input id="name" value="Khadye Sylla"></div>
+      <div class="field"><label for="role">Fonction</label><textarea id="role">Chargée de communication, expérience bénévoles et soutien au financement</textarea></div>
+      <div class="field"><label for="tagline">Présentation de l’organisme</label><textarea id="tagline">Entreprise d’insertion et d’économie sociale, cuisine collective, service traiteur, ferme agricole</textarea></div>
+      <div class="field"><label for="address">Adresse</label><input id="address" value="3568 Rue Adam, Montréal, Qc. H1W 1Y9"></div>
+      <div class="field"><label for="maps">Lien Google Maps de l’adresse</label><input id="maps" type="url" value="https://www.google.com/maps/search/3568+Rue+Adam,+Montr%C3%A9al,+Qc.+H1W+1Y9"></div>
+      <div class="field"><label for="phone">Téléphone (affiché)</label><input id="phone" value="(514) 529-0789"></div>
+      <div class="field"><label for="tel">Téléphone (lien d’appel, format international)</label><input id="tel" value="+15145290789"></div>
+      <div class="field"><label for="extension">Poste (facultatif)</label><input id="extension" value="299"></div>
+      <div class="field"><label for="website">Adresse du site</label><input id="website" type="url" value="https://www.lacchm.com/"></div>
+      <div class="field"><label for="logo">URL du logo</label><input id="logo" type="url" value="https://lacchm.com/media/logo.png"><p class="hint">Le logo est chargé depuis cette adresse. Il doit être accessible publiquement en HTTPS.</p></div>
+      <div class="field"><label for="facebook">Lien Facebook</label><input id="facebook" type="url" value="https://www.facebook.com/La-Cuisine-Collective-Hochelaga-Maisonneuve-1465537513670661/"></div>
+      <div class="field"><label for="instagram">Lien Instagram</label><input id="instagram" type="url" value="https://www.instagram.com/la_cchm/"></div>
+      <div class="field"><label for="linkedin">Lien LinkedIn</label><input id="linkedin" type="url" value="https://www.linkedin.com/company/5335855/admin/feed/posts/"></div>
+      <div class="actions">
+        <button class="primary" type="button" id="download">Télécharger la signature HTML</button>
+        <button class="secondary" type="button" id="copy">Copier le code HTML</button>
+        <button class="quiet" type="button" id="reset">Réinitialiser</button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+  </section>
+  <section class="panel" aria-labelledby="previewTitle">
+    <h2 id="previewTitle">Aperçu en direct</h2>
+    <p class="preview-label">L’aperçu donne une idée du rendu. Gmail et Outlook peuvent appliquer quelques différences de mise en forme.</p>
+    <div class="preview-wrap"><div id="preview"></div></div>
+    <details>
+      <summary>Afficher le code HTML généré</summary>
+      <textarea id="htmlOutput" readonly spellcheck="false" aria-label="Code HTML généré"></textarea>
+      <button class="secondary" type="button" id="copy2">Copier le code HTML</button>
+    </details>
+    <p class="hint" style="margin-top:16px">Conseil : téléchargez un fichier par employé, puis importez ou copiez son contenu dans les paramètres de signature de votre messagerie. Le fichier téléchargé contient uniquement la signature, pas l’éditeur.</p>
+  </section>
+</main>
+<script>
+(() => {
+  const defaults = {};
+  const ids = ['name','role','tagline','address','maps','phone','tel','extension','website','logo','facebook','instagram','linkedin'];
+  ids.forEach(id => defaults[id] = document.getElementById(id).value);
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const url = value => /^https?:\/\//i.test((value || '').trim()) ? (value || '').trim() : '';
+  const lineBreaks = value => esc(value).replace(/\r?\n/g, '<br>');
+  const value = id => document.getElementById(id).value.trim();
+  function makeSignature() {
+    const name = value('name'), role = value('role'), tagline = value('tagline');
+    const address = value('address'), maps = url(value('maps'));
+    const phone = value('phone'), tel = value('tel').replace(/[^+\d]/g, '');
+    const ext = value('extension'), website = url(value('website')), logo = url(value('logo'));
+    const facebook = url(value('facebook')), instagram = url(value('instagram')), linkedin = url(value('linkedin'));
+    const social = (href, label) => href ? `<a href="${esc(href)}" style="display:inline-block;width:21px;height:21px;line-height:21px;border-radius:50%;border:1px solid #555;margin-right:5px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:${label==='in'?'9':'12'}px;font-weight:bold;color:#333;text-decoration:none;">${label}</a>` : '';
+    const addressHTML = maps ? `<a href="${esc(maps)}" style="color:#222;text-decoration:none;">${esc(address)}</a>` : esc(address);
+    const phoneHTML = tel && phone ? `<a href="tel:${esc(tel)}" style="color:#222;text-decoration:none;">${esc(phone)}</a>` : esc(phone);
+    const websiteHTML = website ? `<a href="${esc(website)}" style="color:#222;text-decoration:none;font-weight:700;">${esc(website.replace(/^https?:\/\//i,'').replace(/\/$/,''))}</a>` : '';
+    const logoHTML = logo ? `<img src="${esc(logo)}" alt="CCHM" width="125" style="display:block;width:125px;max-width:125px;height:auto;border:0;outline:none;text-decoration:none;">` : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:38px;font-weight:bold;letter-spacing:-2px;line-height:1;color:#1f1f1f;white-space:nowrap;">cchm<span style="color:#b6cf22;">.</span></div><div style="margin-top:7px;font-family:Georgia,'Times New Roman',serif;font-size:12px;color:#555;">Le changement vit ici.</div>`;
+    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:680px;max-width:680px;background:#fff;color:#222;font-family:Arial,Helvetica,sans-serif;border-collapse:collapse;">
+  <tr>
+    <td style="width:155px;padding:18px 24px 18px 10px;vertical-align:middle;">${logoHTML}</td>
+    <td style="width:1px;padding:0;vertical-align:middle;"><div style="width:1px;height:130px;background:#aaa;font-size:0;line-height:0;">&nbsp;</div></td>
+    <td style="padding:16px 10px 16px 20px;vertical-align:middle;">
+      <div style="font-size:13px;font-weight:700;letter-spacing:.1px;text-transform:uppercase;">${esc(name)}</div>
+      <div style="margin-top:3px;font-size:11px;line-height:1.4;">${lineBreaks(role)}</div>
+      <div style="margin-top:8px;font-size:10px;line-height:1.35;font-style:italic;color:#444;">${lineBreaks(tagline)}</div>
+      <div style="margin-top:8px;font-size:11px;line-height:1.55;">
+        <div>${addressHTML}</div>
+        <div>${phone ? 'Tel: ' + phoneHTML + (ext ? ' poste ' + esc(ext) : '') : ''}</div>
+        <div>${websiteHTML ? 'Site: ' + websiteHTML : ''}</div>
+      </div>
+      <div style="margin-top:9px;">${social(facebook,'f')}${social(instagram,'◎')}${social(linkedin,'in')}</div>
+    </td>
+  </tr>
+</table>`;
+  }
+  function refresh() {
+    const html = makeSignature();
+    document.getElementById('preview').innerHTML = html;
+    document.getElementById('htmlOutput').value = html;
+  }
+  function setStatus(message) { document.getElementById('status').textContent = message; }
+  async function copyHTML() {
+    const html = makeSignature();
+    try { await navigator.clipboard.writeText(html); setStatus('Code HTML copié dans le presse-papiers.'); }
+    catch (_) { const area = document.getElementById('htmlOutput'); area.focus(); area.select(); setStatus('Sélectionnez le code affiché puis copiez-le avec Ctrl+C.'); }
+  }
+  ids.forEach(id => document.getElementById(id).addEventListener('input', () => { refresh(); setStatus(''); }));
+  document.getElementById('download').addEventListener('click', () => {
+    const html = '<!doctype html>\n<html lang="fr">\n<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Signature CCHM - '+esc(value('name'))+'</title></head>\n<body style="margin:16px;background:#fff;">\n'+makeSignature()+'\n</body>\n</html>';
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const slug = (value('name') || 'employe').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    link.download = 'signature-cchm-' + (slug || 'employe') + '.html';
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(link.href);
+    setStatus('Fichier HTML téléchargé.');
+  });
+  document.getElementById('copy').addEventListener('click', copyHTML);
+  document.getElementById('copy2').addEventListener('click', copyHTML);
+  document.getElementById('reset').addEventListener('click', () => { ids.forEach(id => document.getElementById(id).value = defaults[id]); refresh(); setStatus('Informations initiales restaurées.'); });
+  refresh();
+})();
+</script>
+</body>
+</html>
