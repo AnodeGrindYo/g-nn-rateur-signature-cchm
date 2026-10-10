@@ -54,7 +54,8 @@
       <div class="field"><label for="tel">Téléphone (lien d’appel, format international)</label><input id="tel" value="+15145290789"></div>
       <div class="field"><label for="extension">Poste (facultatif)</label><input id="extension" value="299"></div>
       <div class="field"><label for="website">Adresse du site</label><input id="website" type="url" value="https://www.lacchm.com/"></div>
-      <div class="field"><label for="logo">URL du logo</label><input id="logo" type="url" value="https://lacchm.com/media/logo.png"><p class="hint">Le logo est chargé depuis cette adresse. Il doit être accessible publiquement en HTTPS.</p></div>
+      <div class="field"><label for="logo">Chemin ou URL du logo</label><input id="logo" value="./static/img/logo.png"><p class="hint">Le chemin local fonctionne dans le projet. Pour les signatures e-mail, utilisez de préférence une URL HTTPS publique, car les chemins relatifs ne sont généralement pas accessibles depuis Outlook.</p></div>
+      <div class="field"><label for="logoLink">Lien ouvert au clic sur le logo</label><input id="logoLink" type="url" value="https://cchm.com"><p class="hint">Ce lien est indépendant de l’adresse du site affichée dans les coordonnées.</p></div>
       <div class="field"><label for="facebook">Lien Facebook</label><input id="facebook" type="url" value="https://www.facebook.com/La-Cuisine-Collective-Hochelaga-Maisonneuve-1465537513670661/"></div>
       <div class="field"><label for="instagram">Lien Instagram</label><input id="instagram" type="url" value="https://www.instagram.com/la_cchm/"></div>
       <div class="field"><label for="linkedin">Lien LinkedIn</label><input id="linkedin" type="url" value="https://www.linkedin.com/company/5335855/admin/feed/posts/"></div>
@@ -81,7 +82,7 @@
 <script>
 (() => {
   const defaults = {};
-  const ids = ['name','role','tagline','address','maps','phone','tel','extension','website','logo','facebook','instagram','linkedin'];
+  const ids = ['name','role','tagline','address','maps','phone','tel','extension','website','logo','logoLink','facebook','instagram','linkedin'];
   ids.forEach(id => defaults[id] = document.getElementById(id).value);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const url = value => /^https?:\/\//i.test((value || '').trim()) ? (value || '').trim() : '';
@@ -91,13 +92,15 @@
     const name = value('name'), role = value('role'), tagline = value('tagline');
     const address = value('address'), maps = url(value('maps'));
     const phone = value('phone'), tel = value('tel').replace(/[^+\d]/g, '');
-    const ext = value('extension'), website = url(value('website')), logo = url(value('logo'));
+    const ext = value('extension'), website = url(value('website')), logo = value('logo').trim(), logoLink = url(value('logoLink'));
+    const safeLogo = /^(https?:\/\/|\.\.?\/|\/)/i.test(logo) && !/[\"'<>]/.test(logo) ? logo : ''; 
     const facebook = url(value('facebook')), instagram = url(value('instagram')), linkedin = url(value('linkedin'));
     const social = (href, label) => href ? `<a href="${esc(href)}" style="display:inline-block;width:21px;height:21px;line-height:21px;border-radius:50%;border:1px solid #555;margin-right:5px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:${label==='in'?'9':'12'}px;font-weight:bold;color:#333;text-decoration:none;">${label}</a>` : '';
     const addressHTML = maps ? `<a href="${esc(maps)}" style="color:#222;text-decoration:none;">${esc(address)}</a>` : esc(address);
     const phoneHTML = tel && phone ? `<a href="tel:${esc(tel)}" style="color:#222;text-decoration:none;">${esc(phone)}</a>` : esc(phone);
     const websiteHTML = website ? `<a href="${esc(website)}" style="color:#222;text-decoration:none;font-weight:700;">${esc(website.replace(/^https?:\/\//i,'').replace(/\/$/,''))}</a>` : '';
-    const logoHTML = logo ? `<img src="${esc(logo)}" alt="CCHM" width="125" style="display:block;width:125px;max-width:125px;height:auto;border:0;outline:none;text-decoration:none;">` : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:38px;font-weight:bold;letter-spacing:-2px;line-height:1;color:#1f1f1f;white-space:nowrap;">cchm<span style="color:#b6cf22;">.</span></div><div style="margin-top:7px;font-family:Georgia,'Times New Roman',serif;font-size:12px;color:#555;">Le changement vit ici.</div>`;
+    const logoImage = safeLogo ? `<img src="${esc(safeLogo)}" alt="CCHM" width="125" style="display:block;width:125px;max-width:125px;height:auto;border:0;outline:none;text-decoration:none;">` : '' ;
+    const logoHTML = logoImage ? (logoLink ? `<a href="${esc(logoLink)}" target="_blank" style="text-decoration:none;border:0;">${logoImage}</a>` : logoImage) : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:38px;font-weight:bold;letter-spacing:-2px;line-height:1;color:#1f1f1f;white-space:nowrap;">cchm<span style="color:#b6cf22;">.</span></div><div style="margin-top:7px;font-family:Georgia,'Times New Roman',serif;font-size:12px;color:#555;">Le changement vit ici.</div>`;
     return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:680px;max-width:680px;background:#fff;color:#222;font-family:Arial,Helvetica,sans-serif;border-collapse:collapse;">
   <tr>
     <td style="width:155px;padding:18px 24px 18px 10px;vertical-align:middle;">${logoHTML}</td>
@@ -129,14 +132,17 @@
   }
   ids.forEach(id => document.getElementById(id).addEventListener('input', () => { refresh(); setStatus(''); }));
   document.getElementById('download').addEventListener('click', () => {
-    const html = '<!doctype html>\n<html lang="fr">\n<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Signature CCHM - '+esc(value('name'))+'</title></head>\n<body style="margin:16px;background:#fff;">\n'+makeSignature()+'\n</body>\n</html>';
+    // Export only the signature fragment: no doctype, html, head, or body wrapper.
+    // The browser will still display this fragment when the file is opened, while
+    // the source can be inserted into systems that expect only the signature markup.
+    const html = makeSignature();
     const blob = new Blob([html], {type:'text/html;charset=utf-8'});
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     const slug = (value('name') || 'employe').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     link.download = 'signature-cchm-' + (slug || 'employe') + '.html';
     document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(link.href);
-    setStatus('Fichier HTML téléchargé.');
+    setStatus('Fragment HTML de la signature téléchargé, sans balises de document.');
   });
   document.getElementById('copy').addEventListener('click', copyHTML);
   document.getElementById('copy2').addEventListener('click', copyHTML);
