@@ -132,7 +132,7 @@
       <textarea id="htmlOutput" readonly spellcheck="false" aria-label="Code HTML généré"></textarea>
       <button class="secondary" type="button" id="copy2">Copier le code HTML</button>
     </details>
-    <div class="tip"><span aria-hidden="true">ⓘ</span><div><strong>Conseil pour Outlook et Gmail.</strong> Téléchargez un fichier par employé, puis ouvrez-le dans un navigateur et copiez la signature affichée dans les paramètres de messagerie. Le fichier exporté contient uniquement la signature, pas l’éditeur.</div></div>
+    <div class="tip"><span aria-hidden="true">ⓘ</span><div><strong>Conseil pour Outlook et Gmail.</strong> Téléchargez un fichier par employé, puis ouvrez-le dans un navigateur, copiez la signature affichée et collez-la dans l’éditeur de signatures de la messagerie (Outlook : Fichier › Options › Courrier › Signatures). Avec Outlook, ce collage permet d’intégrer le logo au message : sinon Outlook bloque les images distantes chez les destinataires. Le fichier exporté contient uniquement la signature, pas l’éditeur.</div></div>
   </section>
 </main>
 <script>
@@ -144,36 +144,71 @@
   const url = value => /^https?:\/\//i.test((value || '').trim()) ? (value || '').trim() : '';
   const lineBreaks = value => esc(value).replace(/\r?\n/g, '<br>');
   const value = id => document.getElementById(id).value.trim();
+  const LOGO_WIDTH = 125;
+  const LOGO_HEIGHT = 55;
+  const ICON_BASE = 'https://anodegrindyo.github.io/g-nn-rateur-signature-cchm/static/img/';
+
   function makeSignature() {
     const name = value('name'), role = value('role'), tagline = value('tagline');
     const address = value('address'), maps = url(value('maps'));
     const phone = value('phone'), tel = value('tel').replace(/[^+\d]/g, '');
     const ext = value('extension'), website = url(value('website')), logo = value('logo').trim(), logoLink = url(value('logoLink'));
-    const safeLogo = /^(https?:\/\/|\.\.?\/|\/)/i.test(logo) && !/[\"'<>]/.test(logo) ? logo : ''; 
+    const safeLogo = /^(https?:\/\/|\.\.?\/|\/)/i.test(logo) && !/[\"'<>]/.test(logo) ? logo : '';
     const facebook = url(value('facebook')), instagram = url(value('instagram')), linkedin = url(value('linkedin'));
-    const social = (href, label) => href ? `<a href="${esc(href)}" style="display:inline-block;width:21px;height:21px;line-height:21px;border-radius:50%;border:1px solid #555;margin-right:5px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:${label==='in'?'9':'12'}px;font-weight:bold;color:#333;text-decoration:none;">${label}</a>` : '';
-    const addressHTML = maps ? `<a href="${esc(maps)}" style="color:#222;text-decoration:none;">${esc(address)}</a>` : esc(address);
-    const phoneHTML = tel && phone ? `<a href="tel:${esc(tel)}" style="color:#222;text-decoration:none;">${esc(phone)}</a>` : esc(phone);
-    const websiteHTML = website ? `<a href="${esc(website)}" style="color:#222;text-decoration:none;font-weight:700;">${esc(website.replace(/^https?:\/\//i,'').replace(/\/$/,''))}</a>` : '';
-    const logoImage = safeLogo ? `<img src="${esc(safeLogo)}" alt="CCHM" width="125" style="display:block;width:125px;max-width:125px;height:auto;border:0;outline:none;text-decoration:none;">` : '' ;
-    const logoHTML = logoImage ? (logoLink ? `<a href="${esc(logoLink)}" target="_blank" style="text-decoration:none;border:0;">${logoImage}</a>` : logoImage) : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:38px;font-weight:bold;letter-spacing:-2px;line-height:1;color:#1f1f1f;white-space:nowrap;">cchm<span style="color:#b6cf22;">.</span></div><div style="margin-top:7px;font-family:Georgia,'Times New Roman',serif;font-size:12px;color:#555;">Le changement vit ici.</div>`;
-    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:680px;max-width:680px;background:#fff;color:#222;font-family:Arial,Helvetica,sans-serif;border-collapse:collapse;">
+
+    const FONT = "font-family:Arial,Helvetica,sans-serif;";
+    const a = (href, inner, extra = '') =>
+      `<a href="${esc(href)}" style="color:#222222;text-decoration:none;${extra}">${inner}</a>`;
+
+    // Une ligne = une cellule de tableau (padding fiable partout, contrairement à margin sur un div)
+    const row = (html, padTop, style) => html
+      ? `<tr><td style="padding:${padTop}px 0 0 0;${FONT}${style}">${html}</td></tr>`
+      : '';
+
+    // --- Logo
+    const logoImage = safeLogo
+      ? `<img src="${esc(safeLogo)}" alt="CCHM" width="${LOGO_WIDTH}" height="${LOGO_HEIGHT}" border="0" style="display:block;border:0;outline:none;text-decoration:none;width:${LOGO_WIDTH}px;height:${LOGO_HEIGHT}px;">`
+      : '';
+    const logoHTML = logoImage
+      ? (logoLink ? `<a href="${esc(logoLink)}" target="_blank" style="text-decoration:none;border:0;">${logoImage}</a>` : logoImage)
+      : `<span style="font-family:Georgia,'Times New Roman',serif;font-size:38px;font-weight:bold;color:#1f1f1f;">cchm<span style="color:#b6cf22;">.</span></span>`;
+
+    // --- Coordonnées
+    const addressHTML = maps ? a(maps, esc(address)) : esc(address);
+    const phoneHTML = tel && phone ? a('tel:' + tel, esc(phone)) : esc(phone);
+    const websiteHTML = website
+      ? a(website, esc(website.replace(/^https?:\/\//i, '').replace(/\/$/, '')), 'font-weight:bold;')
+      : '';
+
+    // --- Réseaux sociaux : icônes rondes en PNG (Outlook/Word ignore border-radius, donc le rond est dans l'image)
+    const socials = [[facebook, 'social-facebook.png', 'Facebook'], [instagram, 'social-instagram.png', 'Instagram'], [linkedin, 'social-linkedin.png', 'LinkedIn']]
+      .filter(s => s[0]);
+    const socialHTML = socials.length
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${
+          socials.map(([href, file, title], i) =>
+            `<td width="22" height="22" valign="middle" style="width:22px;height:22px;">`
+            + `<a href="${esc(href)}" target="_blank" style="text-decoration:none;border:0;"><img src="${ICON_BASE}${file}" alt="${title}" width="22" height="22" border="0" style="display:block;border:0;outline:none;width:22px;height:22px;"></a></td>`
+            + (i < socials.length - 1 ? `<td width="6" style="width:6px;font-size:1px;line-height:1px;">&nbsp;</td>` : '')
+          ).join('')
+        }</tr></table>`
+      : '';
+
+    return `<table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="width:680px;background-color:#ffffff;color:#222222;${FONT}border-collapse:collapse;">
   <tr>
-    <td style="width:155px;padding:18px 24px 18px 10px;vertical-align:middle;">${logoHTML}</td>
-    <td style="width:1px;padding:0;vertical-align:middle;"><div style="width:1px;height:130px;background:#aaa;font-size:0;line-height:0;">&nbsp;</div></td>
-    <td style="padding:16px 10px 16px 20px;vertical-align:middle;">
-      <div style="font-size:13px;font-weight:700;letter-spacing:.1px;">${esc(name)}</div>
-      <div style="margin-top:3px;font-size:11px;line-height:1.4;">${lineBreaks(role)}</div>
-      <div style="margin-top:8px;font-size:10px;line-height:1.35;font-style:italic;color:#444;">${lineBreaks(tagline)}</div>
-      <div style="margin-top:8px;font-size:11px;line-height:1.55;">
-        <div>${addressHTML}</div>
-        <div>${phone ? 'Tel: ' + phoneHTML + (ext ? ' poste ' + esc(ext) : '') : ''}</div>
-        <div>${websiteHTML ? 'Site: ' + websiteHTML : ''}</div>
-      </div>
-      <div style="margin-top:9px;">${social(facebook,'f')}${social(instagram,'◎')}${social(linkedin,'in')}</div>
-    </td>
+  <td width="155" valign="middle" style="width:155px;padding:18px 24px 18px 10px;vertical-align:middle;">${logoHTML}</td>
+  <td valign="middle" style="padding:16px 10px 16px 20px;vertical-align:middle;border-left:1px solid #aaaaaa;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+  ${row(esc(name), 0, 'font-size:13px;font-weight:bold;color:#222222;')}
+  ${row(lineBreaks(role), 3, 'font-size:11px;line-height:15px;color:#222222;')}
+  ${row(lineBreaks(tagline), 8, 'font-size:10px;line-height:13px;font-style:italic;color:#444444;')}
+  ${row(addressHTML, 8, 'font-size:11px;line-height:17px;color:#222222;')}
+  ${row(phone ? 'Tel: ' + phoneHTML + (ext ? ' poste ' + esc(ext) : '') : '', 0, 'font-size:11px;line-height:17px;color:#222222;')}
+  ${row(websiteHTML ? 'Site: ' + websiteHTML : '', 0, 'font-size:11px;line-height:17px;color:#222222;')}
+  ${socialHTML ? `<tr><td style="padding:9px 0 0 0;">${socialHTML}</td></tr>` : ''}
+  </table>
+  </td>
   </tr>
-</table>`;
+  </table>`;
   }
   function refresh() {
     const html = makeSignature();
