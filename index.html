@@ -208,7 +208,7 @@
   ${row(lineBreaks(tagline), 8, 'font-size:10px;line-height:13px;font-style:italic;color:#444444;')}
   ${row(addressHTML, 8, 'font-size:11px;line-height:17px;color:#222222;')}
   ${row(phone ? 'Tél. : ' + phoneHTML + (ext ? ' poste ' + esc(ext) : '') : '', 0, 'font-size:11px;line-height:17px;color:#222222;')}
-  ${row('Cellulaire : ' + cellulaireHTML, 0, 'font-size:11px;line-height:17px;color:#222222;')}
+  ${row(cellulaire ? 'Cellulaire : ' + cellulaireHTML : '', 0, 'font-size:11px;line-height:17px;color:#222222;')}
   ${row(websiteHTML ? 'Site : ' + websiteHTML : '', 0, 'font-size:11px;line-height:17px;color:#222222;')}
   ${socialHTML ? `<tr><td style="padding:9px 0 0 0;">${socialHTML}</td></tr>` : ''}
   </table>
